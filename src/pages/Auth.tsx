@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { phoneToEmail, normalizePhone } from "@/hooks/useAuth";
@@ -9,17 +9,28 @@ import { toast } from "sonner";
 import { BookOpen } from "lucide-react";
 
 const SignupSchema = z.object({
-  full_name: z.string().trim().min(2, "Nom trop court").max(100),
-  phone: z.string().trim().regex(/^[0-9+\s-]{6,20}$/, "Numéro invalide"),
-  pin: z.string().regex(/^\d{4,6}$/, "PIN: 4 à 6 chiffres"),
-});
+    full_name: z.string().trim().min(2, "Nom trop court").max(100),
+    phone: z.string().trim().regex(/^[0-9+\s-]{6,20}$/, "Numéro invalide"),
+    pin: z.string().regex(/^\d{4,6}$/, "PIN: 4 à 6 chiffres"),
+    diwane_id: z.string().uuid("Sélectionnez votre section"),
+  });
 
 export default function Auth() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
   const [fullName, setFullName] = useState("");
+  const [diwaneId, setDiwaneId] = useState("");
+  const [diwanes, setDiwanes] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    void supabase
+      .from("diwanes")
+      .select("id,name")
+      .order("name")
+      .then(({ data }) => setDiwanes(data ?? []));
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +49,7 @@ export default function Auth() {
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = SignupSchema.safeParse({ full_name: fullName, phone, pin });
+    const parsed = SignupSchema.safeParse({ full_name: fullName, phone, pin, diwane_id: diwaneId });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
       return;
@@ -46,7 +57,7 @@ export default function Auth() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("auth-signup", {
-        body: { full_name: fullName, phone: normalizePhone(phone), pin },
+        body: { full_name: fullName, phone: normalizePhone(phone), pin, diwane_id: diwaneId },
       });
       if (error || (data as any)?.error) {
         throw new Error((data as any)?.error ?? error?.message ?? "Erreur");
@@ -73,8 +84,8 @@ export default function Auth() {
             <BookOpen className="h-8 w-8 text-primary-foreground" strokeWidth={1.5} />
           </div>
           <h1 className="font-display text-4xl font-semibold text-foreground">Dahira</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Suivi des khassidas de la communauté
+          <p className="text-muted-foreground mt-2 text-sm max-w-sm mx-auto">
+            Recensez les khassidas lus par section ; les admins consultent les totaux et exportent un rapport.
           </p>
         </header>
 
@@ -101,20 +112,42 @@ export default function Auth() {
           </div>
 
           <form onSubmit={mode === "login" ? handleLogin : handleSignup} className="space-y-4">
-            {mode === "signup" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="name">Nom complet</Label>
-                <Input
-                  id="name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Ex : Moussa Diop"
-                  className="h-12 text-base"
-                  autoComplete="name"
-                  required
-                />
-              </div>
-            )}
+              {mode === "signup" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name">Nom complet</Label>
+                    <Input
+                      id="name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Ex : Moussa Diop"
+                      className="h-12 text-base"
+                      autoComplete="name"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="diwane">Section (diwane)</Label>
+                    <select
+                      id="diwane"
+                      value={diwaneId}
+                      onChange={(e) => setDiwaneId(e.target.value)}
+                      className="mt-1.5 w-full h-12 rounded-md border border-input bg-background px-3 text-base min-h-[48px]"
+                      required
+                      disabled={diwanes.length === 0}
+                    >
+                      <option value="">
+                        {diwanes.length === 0 ? "Aucune section — contactez un super admin" : "— Choisir votre section —"}
+                      </option>
+                      {diwanes.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
 
             <div className="space-y-1.5">
               <Label htmlFor="phone">Numéro de téléphone</Label>

@@ -14,6 +14,7 @@ const Body = z.object({
     .regex(/^[0-9+\s-]{6,20}$/, "Numéro invalide"),
   pin: z.string().regex(/^\d{4,6}$/, "Le code PIN doit contenir 4 à 6 chiffres"),
   full_name: z.string().trim().min(1).max(100),
+  diwane_id: z.string().uuid("Sélectionnez une section valide"),
 });
 
 function normalizePhone(p: string): string {
@@ -74,11 +75,26 @@ Deno.serve(async (req) => {
 
     const userId = created.user.id;
 
+    const { data: diwaneRow, error: diwaneErr } = await admin
+      .from("diwanes")
+      .select("id,name")
+      .eq("id", parsed.data.diwane_id)
+      .maybeSingle();
+    if (diwaneErr || !diwaneRow) {
+      await admin.auth.admin.deleteUser(userId);
+      return new Response(
+        JSON.stringify({ error: "Section (diwane) introuvable" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const { error: profErr } = await admin.from("profiles").insert({
       id: userId,
       identifiant: phone,
       full_name,
       phone,
+      diwane: diwaneRow.name,
+      diwane_id: diwaneRow.id,
     });
     if (profErr) {
       await admin.auth.admin.deleteUser(userId);

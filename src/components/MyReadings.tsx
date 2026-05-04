@@ -21,9 +21,18 @@ export default function MyReadings({ refreshKey }: { refreshKey: number }) {
 
   async function load() {
     setLoading(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setReadings([]);
+      setLoading(false);
+      return;
+    }
     const { data } = await supabase
       .from("readings")
       .select("id, count, read_at, khassidas(name)")
+      .eq("user_id", user.id)
       .order("read_at", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(100);
