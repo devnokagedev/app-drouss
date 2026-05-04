@@ -49,6 +49,53 @@ export type Database = {
           },
         ]
       }
+      diwane_admins: {
+        Row: {
+          created_at: string
+          diwane_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          diwane_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          diwane_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diwane_admins_diwane_id_fkey"
+            columns: ["diwane_id"]
+            isOneToOne: false
+            referencedRelation: "diwanes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diwanes: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       khassidas: {
         Row: {
           created_at: string
@@ -73,6 +120,8 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          diwane: string | null
+          diwane_id: string | null
           full_name: string
           id: string
           identifiant: string
@@ -80,6 +129,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          diwane?: string | null
+          diwane_id?: string | null
           full_name: string
           id: string
           identifiant: string
@@ -87,12 +138,22 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          diwane?: string | null
+          diwane_id?: string | null
           full_name?: string
           id?: string
           identifiant?: string
           phone?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_diwane_id_fkey"
+            columns: ["diwane_id"]
+            isOneToOne: false
+            referencedRelation: "diwanes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       readings: {
         Row: {
