@@ -28,10 +28,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/integrations/supabase/types';
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL!;
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trash2, Plus, Search, Edit3 } from "lucide-react";
@@ -120,7 +116,7 @@ export function PlatformAdminsPanel() {
   );
 
   const openCreate = () => {
-    setFormData({ full_name: "", identifiant: "", phone: "", diwane_id: "" });
+    setFormData({ full_name: "", identifiant: "", pin: "", diwane_id: "" });
     setEditId(null);
     setDialogOpen(true);
   };
@@ -129,7 +125,7 @@ export function PlatformAdminsPanel() {
     setFormData({
       full_name: admin.full_name,
       identifiant: admin.identifiant,
-      phone: admin.phone,
+      pin: "",
       diwane_id: admin.diwane_id || "",
     });
     setEditId(admin.id);
@@ -137,64 +133,46 @@ export function PlatformAdminsPanel() {
   };
 
   const saveAdmin = async () => {
-    const { full_name, identifiant, phone, diwane_id } = formData;
+    const { full_name, identifiant, pin, diwane_id } = formData;
 
     if (!full_name || !identifiant) {
-      toast.error("Full name et identifiant requis");
+      toast.error("Nom complet et identifiant requis");
       return;
     }
 
     try {
       if (editId) {
-        // Update
         const { error: profileError } = await supabase
           .from("profiles")
           .update({ full_name, identifiant, diwane_id: diwane_id || null })
           .eq("id", editId);
         if (profileError) throw profileError;
       } else {
-        // Create
-        // Admin client temporaire pour service_role
-        const adminSupabase = createClient(SUPABASE_URL!, process.env.VITE_SUPABASE_SERVICE_ROLE_KEY!, {
-          auth: { autoRefreshToken: false, persistSession: false }
-        });
-        const { data, error: authError } = await adminSupabase.auth.admin.createUser({
-          email: `${identifiant}@dahira.local`,
-          phone: identifiant,
-          password: formData.pin || '12345',
-          email_confirm: true,
-          user_metadata: {
-            full_name,
-            identifiant,
-            role: 'platform_admin'
-          }
-        });
-        if (authError) throw authError;
-        const newUserId = data.user!.id;
-
-        // Create profile
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({
-            id: newUserId,
-            full_name,
-            identifiant,
-            diwane_id: diwane_id || null,
-          });
-        if (profileError) throw profileError;
-
-        // Add role admin
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({ user_id: newUserId, role: "admin" });
-        if (roleError) throw roleError;
+        if (!/^\d{4,6}$/.test(pin)) {
+          toast.error("PIN: 4 à 6 chiffres");
+          return;
+        }
+        const { data, error } = await supabase.functions.invoke(
+          "admin-create-platform-admin",
+          {
+            body: {
+              full_name,
+              identifiant,
+              pin,
+              diwane_id: diwane_id || null,
+            },
+          },
+        );
+        if (error || (data as any)?.error) {
+          throw new Error((data as any)?.error ?? error?.message ?? "Erreur");
+        }
       }
 
       toast.success(editId ? "Admin mis à jour" : "Admin créé");
       setDialogOpen(false);
       loadData();
     } catch (error) {
-      toast.error("Erreur sauvegarde");
+      toast.error(error instanceof Error ? error.message : "Erreur sauvegarde");
     }
   };
 
