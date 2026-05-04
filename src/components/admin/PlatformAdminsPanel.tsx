@@ -234,12 +234,17 @@ export function PlatformAdminsPanel() {
               </div>
               <div>
                 <Label>Diwane (optionnel)</Label>
-                <Select value={formData.diwane_id} onValueChange={(v) => setFormData({ ...formData, diwane_id: v })}>
+                <Select
+                  value={formData.diwane_id || "__none__"}
+                  onValueChange={(v) =>
+                    setFormData({ ...formData, diwane_id: v === "__none__" ? "" : v })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Aucun" />
                   </SelectTrigger>
                   <SelectContent>
-  <SelectItem value="null">Aucun</SelectItem>
+                    <SelectItem value="__none__">Aucun</SelectItem>
                     {diwanes.map((d) => (
                       <SelectItem key={d.id} value={d.id}>
                         {d.name}
